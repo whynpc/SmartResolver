@@ -1,0 +1,11 @@
+<resources>
+
+    <string name="title_activity_settings">Settings</string>
+
+    <string name="pref_header_general">General</string>
+    
+    <string name="pref_default_internal_port">9999</string>
+    <string name="pref_default_core_pool_size">3</string>
+    <string name="pref_default_max_pool_size">5</string>
+
+</resources>

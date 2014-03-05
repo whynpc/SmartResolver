@@ -1,0 +1,32 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+    <EditTextPreference
+        android:defaultValue="@string/pref_default_internal_port"
+        android:inputType="number"
+        android:key="internal_port"
+        android:maxLines="1"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="Internal Port" />
+    
+    
+    <EditTextPreference
+        android:defaultValue="@string/pref_default_core_pool_size"
+        android:inputType="number"
+        android:key="internal_port"
+        android:maxLines="1"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="Core Pool Size" />
+    
+    <EditTextPreference
+        android:defaultValue="@string/pref_default_max_pool_size"
+        android:inputType="number"
+        android:key="internal_port"
+        android:maxLines="1"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="Max Pool Size" />    
+
+        
+
+</PreferenceScreen>

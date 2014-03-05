@@ -1,6 +1,7 @@
 package edu.ucla.cs.wing.smartresolver;
 
 import android.os.Bundle;
+import android.print.PrintAttributes.Resolution;
 import android.app.Activity;
 import android.content.Intent;
 import android.view.Menu;
@@ -24,6 +25,7 @@ public class MainActivity extends Activity {
 			@Override
 			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
 				if (isChecked) {
+					
 					
 				} else {
 					
