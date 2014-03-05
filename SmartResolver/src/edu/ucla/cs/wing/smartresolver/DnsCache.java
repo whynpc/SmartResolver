@@ -30,6 +30,10 @@ public class DnsCache {
 	public void setNetworkId(String networkId) {
 		this.networkId = networkId;
 	}
+	
+	public boolean hasAnswer(String question) {
+		return false;
+	}
 
 	
 	

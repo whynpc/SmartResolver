@@ -20,6 +20,7 @@ import org.xbill.DNS.Resolver;
 import org.xbill.DNS.SimpleResolver;
 import org.xbill.DNS.TSIG;
 
+import edu.ucla.cs.wing.smartresolver.EventLog.Type;
 import edu.ucla.cs.wing.smartresolver.R.string;
 import android.app.TaskStackBuilder;
 import android.content.Context;
@@ -52,11 +53,15 @@ public class DnsResolver {
 
 	private HashMap<String, DnsQueryTask> pendingQueries;
 
-	public DnsResolver() {
+	public DnsResolver(Context context, SharedPreferences prefs) {
+		this.context = context;
+		this.prefs = prefs;
+		
+		
 		defaultCache = new DnsCache(this);
 		caches = new HashMap<String, DnsCache>();
-		pendingQueries = new HashMap<String, DnsQueryTask>();		
-		
+		pendingQueries = new HashMap<String, DnsQueryTask>();
+
 	}
 
 	public void refresh() {
@@ -85,10 +90,19 @@ public class DnsResolver {
 				context.getString(R.string.pref_default_max_pool_size)));
 		executor = new QueryExecutor(corePoolSize, maxPoolSize, 1,
 				TimeUnit.SECONDS, pendingQueryTasks);
-		
+
 		// TODO: refresh resolver
-		
-		
+		String[] servers = new String[2];
+		for (int i = 0; i < 2; i++) {
+			// TODO: add support to wifi dns servers
+			servers[i] = MobileInfo.getInstance().getCellularDnsServer(i + 1);
+		}
+		try {
+			resolver = new ExtendedResolver(servers);
+		} catch (UnknownHostException e) {
+			resolver = null;
+		}
+
 	}
 
 	public DnsCache getCurrentDnsCache() {
@@ -127,7 +141,11 @@ public class DnsResolver {
 
 	public void start() {
 		if (!running) {
+			EventLog.newLogFile(EventLog.genLogFileName(new String[] { String
+					.valueOf(System.currentTimeMillis()) }));
+
 			running = true;
+
 			new Thread() {
 				@Override
 				public void run() {
@@ -139,10 +157,22 @@ public class DnsResolver {
 							handleResolveReq(pkt);
 						} catch (SocketTimeoutException e1) {
 						} catch (IOException e) {
+							EventLog.write(Type.ERROR,
+									"IO error when recving pkt from proxy");
 						}
 					}
 				}
 			}.start();
+
+			// change DNS server
+			try {
+				// we only change primary server; leave secondary server as
+				// backup
+				String cmd = "su -c setprop net.dns1 127.0.0.1";
+				Runtime.getRuntime().exec(cmd);
+			} catch (IOException e) {
+				EventLog.write(Type.ERROR, "Fail to change dns server setting");
+			}
 		}
 	}
 
@@ -152,7 +182,19 @@ public class DnsResolver {
 
 	public void stop() {
 		if (running) {
+			EventLog.close();
+			
 			running = false;
+
+			// restore DNS server
+			// TODO: add wifi support
+			String cmd = "su -c setprop net.dns1 "
+					+ MobileInfo.getInstance().getCellularDnsServer(1);
+			try {
+				Runtime.getRuntime().exec(cmd);
+			} catch (IOException e) {
+				EventLog.write(Type.ERROR, "Fail to restore dns server setting");
+			}
 		}
 	}
 
@@ -174,6 +216,6 @@ public class DnsResolver {
 				}
 			}
 		}
-
 	}
+
 }

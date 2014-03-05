@@ -62,8 +62,9 @@ public class SettingsActivity extends PreferenceActivity {
 		// Add 'general' preferences.
 		addPreferencesFromResource(R.xml.pref_general);
 
-		bindPreferenceSummaryToValue(findPreference("example_text"));
-
+		bindPreferenceSummaryToValue(findPreference("internal_port"));
+		bindPreferenceSummaryToValue(findPreference("core_pool_size"));
+		bindPreferenceSummaryToValue(findPreference("max_pool_size"));
 	}
 
 	/** {@inheritDoc} */

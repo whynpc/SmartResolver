@@ -203,6 +203,20 @@ public class MobileInfo {
 		}
 		return server;
 	}
+	
+	public String getCellularDnsServer(int num) {
+		String server = null;
+		try {
+			Process process = Runtime.getRuntime()
+					.exec("getprop net.rmnet_usb0.dns" + num);
+			BufferedReader in = new BufferedReader(new InputStreamReader(
+					process.getInputStream()));
+			server = in.readLine();
+			in.close();
+		} catch (IOException e) {
+		}
+		return server;
+	}
 
 	/* Retrieve the network type, GPRS, UMTS, LTE, HSPA */
 	public String getNetworkTypeStr() {
