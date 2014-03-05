@@ -10,7 +10,7 @@ import android.util.Log;
 
 public class EventLog {
 
-	public static final String TAG = "accounting";
+	public static final String TAG = "resolver";
 	public static final String SEPARATOR = ";";
 
 	public enum Type {

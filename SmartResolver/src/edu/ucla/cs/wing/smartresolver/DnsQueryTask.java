@@ -1,13 +1,17 @@
 package edu.ucla.cs.wing.smartresolver;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.util.Observer;
 
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Lookup;
 import org.xbill.DNS.Record;
+import org.xbill.DNS.Section;
 import org.xbill.DNS.TextParseException;
 
+import edu.ucla.cs.wing.smartresolver.EventLog.Type;
 import android.database.Observable;
 import android.os.Message;
 import android.preference.PreferenceActivity.Header;
@@ -21,6 +25,8 @@ public class DnsQueryTask extends java.util.Observable implements Observer, Runn
 	
 	private DnsResolver resolver;
 	
+	private int incomingPort;
+	
 	private boolean replied = false;
 	
 	public String getQuestion() {
@@ -31,11 +37,16 @@ public class DnsQueryTask extends java.util.Observable implements Observer, Runn
 		this.question = question;
 	}	
 	
-	public DnsQueryTask(org.xbill.DNS.Message msg, DnsResolver resolver) {
+	public DnsQueryTask(org.xbill.DNS.Message msg, int port, DnsResolver resolver) {
 		super();
 		this.createTime = System.currentTimeMillis();		
-		this.msg = msg;
+		
 		this.resolver = resolver;		
+		incomingPort = port;
+		this.msg = msg;
+		question = msg.getQuestion().getName().toString();
+		
+		EventLog.write(Type.DEBUG, "DnsQueryTask: " + question);
 	}
 	
 	private void replyToProxy(Record[] records) {
@@ -47,30 +58,37 @@ public class DnsQueryTask extends java.util.Observable implements Observer, Runn
 			header.setFlag(Flags.RD);
 			response.setHeader(header);
 			
+			for (Record record : records) {
+				response.addRecord(record, Section.ANSWER);				
+			}
 			
-			
-			replied = true;			
+			byte[] data = response.toWire();
+			DatagramPacket pkt = new DatagramPacket(data, data.length);
+			pkt.setAddress(InetAddress.getLocalHost());
+			pkt.setPort(incomingPort);
+			if (resolver.reply(pkt)) {
+				replied = true;
+			}			
 		} catch (IOException e) {
-		}		
-		
+		}
 	}
-	
+
+	// TODO: try answer with cache
 	public void answerWithCache() {
-		// TODO: try answer with cache
 		handleError();
 	}
 
+	// receive the response for another pending query for the same name
 	@Override
 	public void update(java.util.Observable observable, Object data) {
-		// receive the response for another pending query for the same name
 		Record[] records = (Record[]) data;
 		replyToProxy(records);
 		handleError();
 	}
-
-	@Override
-	public void run() {
-		// send query to get answers
+	
+	
+	// send query to resolve
+	private void sendQuery() {
 		try {
 			Lookup lookup = new Lookup(question);
 			lookup.setResolver(resolver.getResolver());			
@@ -82,10 +100,15 @@ public class DnsQueryTask extends java.util.Observable implements Observer, Runn
 		}
 		handleError();
 	}
+
+	@Override
+	public void run() {
+		sendQuery();		
+	}
 	
 	private void handleError() {
 		if (!replied) {
-			// TODO: send error code to resolver
+			// TODO: if replied = false, then send error code to resolver
 			
 		}		
 	}

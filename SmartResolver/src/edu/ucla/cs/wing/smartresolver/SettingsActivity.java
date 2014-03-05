@@ -55,16 +55,15 @@ public class SettingsActivity extends PreferenceActivity {
 		if (!isSimplePreferences(this)) {
 			return;
 		}
-
 		// In the simplified UI, fragments are not used at all and we instead
 		// use the older PreferenceActivity APIs.
 
 		// Add 'general' preferences.
 		addPreferencesFromResource(R.xml.pref_general);
-
 		bindPreferenceSummaryToValue(findPreference("internal_port"));
 		bindPreferenceSummaryToValue(findPreference("core_pool_size"));
 		bindPreferenceSummaryToValue(findPreference("max_pool_size"));
+		//bindPreferenceSummaryToValue(findPreference("disable_legacy_cache"));
 	}
 
 	/** {@inheritDoc} */
@@ -128,7 +127,7 @@ public class SettingsActivity extends PreferenceActivity {
 				// using RingtoneManager.
 				if (TextUtils.isEmpty(stringValue)) {
 					// Empty values correspond to 'silent' (no ringtone).
-					//preference.setSummary(R.string.pref_ringtone_silent);
+					// preference.setSummary(R.string.pref_ringtone_silent);
 
 				} else {
 					Ringtone ringtone = RingtoneManager.getRingtone(
@@ -197,6 +196,5 @@ public class SettingsActivity extends PreferenceActivity {
 			bindPreferenceSummaryToValue(findPreference("example_list"));
 		}
 	}
-
 
 }

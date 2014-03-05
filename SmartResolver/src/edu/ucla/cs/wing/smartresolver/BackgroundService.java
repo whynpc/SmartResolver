@@ -19,18 +19,16 @@ public class BackgroundService extends Service {
 		return _resolver;
 	}
 	
-	
 	@Override
 	public void onCreate() {
-		super.onCreate();
-		
+		super.onCreate();		
 		prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		
 		MobileInfo.init(this);
 		mobileInfo = MobileInfo.getInstance();
 		
-		
-		_resolver = new DnsResolver(this, prefs);		
+		_resolver = new DnsResolver(this, prefs);
+		_resolver.init();
 	}
 
 	@Override

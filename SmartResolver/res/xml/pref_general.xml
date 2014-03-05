@@ -8,11 +8,10 @@
         android:singleLine="true"
         android:title="Internal Port" />
     
-    
     <EditTextPreference
         android:defaultValue="@string/pref_default_core_pool_size"
         android:inputType="number"
-        android:key="internal_port"
+        android:key="core_pool_size"
         android:maxLines="1"
         android:selectAllOnFocus="true"
         android:singleLine="true"
@@ -21,12 +20,16 @@
     <EditTextPreference
         android:defaultValue="@string/pref_default_max_pool_size"
         android:inputType="number"
-        android:key="internal_port"
+        android:key="max_pool_size"
         android:maxLines="1"
         android:selectAllOnFocus="true"
         android:singleLine="true"
-        android:title="Max Pool Size" />    
-
+        android:title="Max Pool Size" />
+        
+    <CheckBoxPreference
+        android:key="disable_legacy_cache"
+        android:title="Disable Legacy Cache"
+        android:defaultValue="true" />
         
 
 </PreferenceScreen>

@@ -20,11 +20,15 @@ public class DnsCache {
 	public DnsCache(DnsResolver resolver) {
 		this.resolver = resolver;
 		cache = new HashMap<String, DnsCache.DnsRecord>();			
-	}
-	
+	}	
 	
 	public String getNetworkId() {
 		return networkId;
+	}
+	
+	public boolean resolveQueryTask(DnsQueryTask queryTask) {
+		
+		return false;
 	}
 
 	public void setNetworkId(String networkId) {
@@ -32,10 +36,11 @@ public class DnsCache {
 	}
 	
 	public boolean hasAnswer(String question) {
+		if (cache.containsKey(question)) {
+			return true;
+		}
 		return false;
-	}
-
-	
+	}	
 	
 	
 }
