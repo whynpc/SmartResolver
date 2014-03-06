@@ -1,8 +1,10 @@
 package edu.ucla.cs.wing.smartresolver;
 
-public abstract class DnsNetwork {
+public class DnsNetwork {
 	
-	protected abstract String getNetworkId();
-	 
-
+	
+	
+	public String getNetworkId() {
+		return null;
+	}
 }

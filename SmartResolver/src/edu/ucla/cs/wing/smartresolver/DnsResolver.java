@@ -16,6 +16,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import org.xbill.DNS.Cache;
 import org.xbill.DNS.ExtendedResolver;
 import org.xbill.DNS.Resolver;
 import org.xbill.DNS.SimpleResolver;
@@ -40,33 +41,56 @@ public class DnsResolver {
 	private Resolver resolver;
 
 	private boolean running;
+	private boolean disableLegacyCache;
 
 	private DnsCache defaultCache;
-
-	private DnsCache currentCache = null;
 	private HashMap<String, DnsCache> caches;
+	private DnsCache currentCache = null;
+
+	private ContentServerPerfDb contentServerPerfDb;
 
 	private Context context;
 	private SharedPreferences prefs;
 
 	private QueryExecutor executor;
-
 	private BlockingQueue<Runnable> pendingQueryTasks;
-
 	private HashMap<String, DnsQueryTask> pendingQueries;
 
 	public DnsResolver(Context context, SharedPreferences prefs) {
 		this.context = context;
 		this.prefs = prefs;
 
-		defaultCache = new DnsCache(this);		
+		contentServerPerfDb = new ContentServerPerfDb();
 		caches = new HashMap<String, DnsCache>();
 		pendingQueries = new HashMap<String, DnsQueryTask>();
-		
+		defaultCache = createCache(null, contentServerPerfDb);
 		currentCache = defaultCache;
 	}
 
+	public void init() {
+		// TODO: init the content of contentServerPerfDb
+		// TODO: init cache based on current network
+
+		refresh();
+	}
+
+	private DnsCache createCache(String networkId,
+			ContentServerPerfDb contentServerPerfDb) {
+		DnsCache dnsCache = new DnsCache(this);
+		dnsCache.setNetworkId(networkId);
+		dnsCache.setPerfDb(contentServerPerfDb);
+		return dnsCache;
+	}
+
+	private DnsCache createDnsCache(String network) {
+		// DnsCache dnsCache = new DnsCache(this, serverPerfDb)
+		return null;
+	}
+
 	public void refresh() {
+		// refresh parameter
+		disableLegacyCache = prefs.getBoolean("disable_legacy_cache", true);
+
 		// refresh socket to recv query from proxy
 		if (internalSocket != null) {
 			internalSocket.close();
@@ -92,7 +116,7 @@ public class DnsResolver {
 		executor = new QueryExecutor(corePoolSize, maxPoolSize, 1,
 				TimeUnit.SECONDS, pendingQueryTasks);
 
-		// TODO: refresh resolver
+		// TODO: refresh DNS server
 		String[] servers = new String[2];
 		for (int i = 0; i < 2; i++) {
 			// TODO: add support to wifi dns servers
@@ -110,22 +134,19 @@ public class DnsResolver {
 		return currentCache;
 	}
 
-	public void init() {
-		refresh();
-	}
-
 	public void cleanUp() {
 		if (internalSocket != null) {
 			internalSocket.close();
 		}
 	}
 
-	private void handleResolveReq(DatagramPacket pkt) {		
+	private void handleResolveReq(DatagramPacket pkt) {
 		try {
-			EventLog.write(Type.DEBUG, "Incoming query from proxy at port = " + pkt.getPort());
-			
-			byte[] data = Arrays.copyOf(pkt.getData(), pkt.getLength());			
-			org.xbill.DNS.Message msg = new org.xbill.DNS.Message(data);			
+			EventLog.write(Type.DEBUG, "Incoming query from proxy at port = "
+					+ pkt.getPort());
+
+			byte[] data = Arrays.copyOf(pkt.getData(), pkt.getLength());
+			org.xbill.DNS.Message msg = new org.xbill.DNS.Message(data);
 			DnsQueryTask queryTask = new DnsQueryTask(msg, pkt.getPort(), this);
 
 			if (getCurrentDnsCache().resolveQueryTask(queryTask)) {
@@ -153,7 +174,7 @@ public class DnsResolver {
 	}
 
 	public void start() {
-		if (!running) {
+		if (!running) { // avoid duplicate start
 			EventLog.newLogFile(EventLog.genLogFileName(new String[] { String
 					.valueOf(System.currentTimeMillis()) }));
 
@@ -173,7 +194,7 @@ public class DnsResolver {
 								new byte[BUF_SIZE], BUF_SIZE);
 						try {
 							internalSocket.receive(pkt);
-							handleResolveReq(pkt);							
+							handleResolveReq(pkt);
 						} catch (SocketTimeoutException e1) {
 						} catch (IOException e) {
 							EventLog.write(Type.ERROR,
@@ -193,11 +214,12 @@ public class DnsResolver {
 			}
 		}
 	}
-	
+
 	public boolean reply(DatagramPacket pkt) {
 		if (internalSocket != null) {
 			try {
-				EventLog.write(Type.DEBUG, "Reply to proxy at port = " + pkt.getPort());
+				EventLog.write(Type.DEBUG,
+						"Reply to proxy at port = " + pkt.getPort());
 				internalSocket.send(pkt);
 			} catch (IOException e) {
 				EventLog.write(Type.ERROR, "IOException when replying to proxy");
@@ -211,26 +233,28 @@ public class DnsResolver {
 		return resolver;
 	}
 
-	public void stop() {
-		if (running) {
-			EventLog.close();
-			
-			running = false;
-			try {
-				Runtime.getRuntime().exec(CMD_STOP_PROXY);
-			} catch (IOException e1) {
-				EventLog.write(Type.ERROR, "Fail to stop proxy");
-			}
+	public boolean isDisableLegacyCache() {
+		return disableLegacyCache;
+	}
 
-			// restore DNS server
-			// TODO: add wifi support
-			String cmd = "su -c setprop net.dns1 "
-					+ MobileInfo.getInstance().getCellularDnsServer(1);
-			try {
-				Runtime.getRuntime().exec(cmd);
-			} catch (IOException e) {
-				EventLog.write(Type.ERROR, "Fail to restore dns server setting");
-			}
+	public void stop() {
+		EventLog.close();
+
+		running = false;
+		try {
+			Runtime.getRuntime().exec(CMD_STOP_PROXY);
+		} catch (IOException e1) {
+			EventLog.write(Type.ERROR, "Fail to stop proxy");
+		}
+
+		// restore DNS server
+		// TODO: add wifi support
+		String cmd = "su -c setprop net.dns1 "
+				+ MobileInfo.getInstance().getCellularDnsServer(1);
+		try {
+			Runtime.getRuntime().exec(cmd);
+		} catch (IOException e) {
+			EventLog.write(Type.ERROR, "Fail to restore dns server setting");
 		}
 	}
 
@@ -246,6 +270,7 @@ public class DnsResolver {
 			super.afterExecute(r, t);
 			DnsQueryTask task = (DnsQueryTask) r;
 			synchronized (pendingQueries) {
+				// XXX: whether also do pendingQueries.remove() with Observer?
 				if (pendingQueries.containsKey(task.getQuestion())
 						&& pendingQueries.get(task.getQuestion()).equals(task)) {
 					pendingQueries.remove(task.getQuestion());

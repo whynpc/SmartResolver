@@ -74,7 +74,6 @@ public class MobileInfo {
 
 	public static void init(Context context) {
 		instance = new MobileInfo(context);
-
 	}
 
 	public static MobileInfo getInstance() {

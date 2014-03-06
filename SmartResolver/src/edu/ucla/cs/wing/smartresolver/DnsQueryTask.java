@@ -59,6 +59,9 @@ public class DnsQueryTask extends java.util.Observable implements Observer, Runn
 			response.setHeader(header);
 			
 			for (Record record : records) {
+				if (resolver.isDisableLegacyCache()) {
+					// TODO: set TTL of record to 0
+				}				
 				response.addRecord(record, Section.ANSWER);				
 			}
 			
@@ -84,8 +87,7 @@ public class DnsQueryTask extends java.util.Observable implements Observer, Runn
 		Record[] records = (Record[]) data;
 		replyToProxy(records);
 		handleError();
-	}
-	
+	}	
 	
 	// send query to resolve
 	private void sendQuery() {

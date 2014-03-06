@@ -13,6 +13,8 @@ public class DnsCache {
 	
 	private DnsResolver resolver;
 	
+	private ContentServerPerfDb perfDb;
+	
 	private String networkId;	
 	
 	private HashMap<String, DnsRecord> cache;
@@ -26,8 +28,15 @@ public class DnsCache {
 		return networkId;
 	}
 	
-	public boolean resolveQueryTask(DnsQueryTask queryTask) {
-		
+	public ContentServerPerfDb getPerfDb() {
+		return perfDb;
+	}
+
+	public void setPerfDb(ContentServerPerfDb perfDb) {
+		this.perfDb = perfDb;
+	}
+
+	public boolean resolveQueryTask(DnsQueryTask queryTask) {		
 		return false;
 	}
 
@@ -40,7 +49,10 @@ public class DnsCache {
 			return true;
 		}
 		return false;
-	}	
+	}
 	
+	private void deleteCacheAuto() {
+		
+	}
 	
 }
