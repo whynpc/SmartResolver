@@ -29,6 +29,8 @@ public class BackgroundService extends Service {
 		
 		_resolver = new DnsResolver(this, prefs);
 		_resolver.init();
+		
+		DnsProxy.deployDnsProxy(this);
 	}
 
 	@Override
@@ -42,8 +44,7 @@ public class BackgroundService extends Service {
 		if (_resolver != null) {
 			_resolver.cleanUp();
 		}
-	}	
-	
+	}
 	
 	private void sendMsgToActivity() {
 		
