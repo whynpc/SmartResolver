@@ -6,11 +6,14 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import edu.ucla.cs.wing.smartresolver.EventLog.LogType;
 import android.content.Context;
 
 public class DnsProxy {
 
 	public static final String PROXY_BIN_PATH = "/data/local/dnsproxy";
+	public static final String CMD_LAUNCH_PROXY = "su -c ./data/local/dnsproxy";
+	public static final String CMD_STOP_PROXY = "su -c killall dnsproxy";
 
 	public static void deployDnsProxy(Context context) {
 		File proxyBin = new File(PROXY_BIN_PATH);
@@ -55,7 +58,23 @@ public class DnsProxy {
 		} catch (IOException e) {
 
 		}
-
+	}
+	
+	public static void launchDnsProxy() {
+		try {
+			Runtime.getRuntime().exec(CMD_LAUNCH_PROXY);
+		} catch (IOException e2) {
+			EventLog.write(LogType.ERROR, "Fail to launch proxy");
+		}		
+	}
+	
+	public static void stopDnsProxy() {
+		try {
+			Runtime.getRuntime().exec(CMD_STOP_PROXY);
+		} catch (IOException e1) {
+			EventLog.write(LogType.ERROR, "Fail to stop proxy");
+		}
+		
 	}
 
 }

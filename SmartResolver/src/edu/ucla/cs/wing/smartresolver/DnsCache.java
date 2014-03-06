@@ -7,8 +7,7 @@ import org.xbill.DNS.Resolver;
 
 public class DnsCache {
 	
-	public static class DnsRecord {
-		
+	public static class DnsRecord {		
 	}
 	
 	private DnsResolver resolver;

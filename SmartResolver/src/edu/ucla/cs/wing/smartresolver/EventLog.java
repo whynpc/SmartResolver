@@ -13,7 +13,7 @@ public class EventLog {
 	public static final String TAG = "resolver";
 	public static final String SEPARATOR = ";";
 
-	public enum Type {
+	public enum LogType {
 		DEBUG, ERROR, MONITOR
 	};
 
@@ -53,7 +53,7 @@ public class EventLog {
 					dir.getAbsolutePath(), fileName)));
 		} catch (FileNotFoundException e) {
 			logFileWriter = null;
-			write(Type.DEBUG, "Fail to open log file: " + e.toString());
+			write(LogType.DEBUG, "Fail to open log file: " + e.toString());
 		}
 	}
 
@@ -70,7 +70,7 @@ public class EventLog {
 		return sb.toString();
 	}
 
-	public static void write(Type type, String data) {
+	public static void write(LogType type, String data) {
 		if (enabled) {
 			StringBuilder sb = new StringBuilder();
 			sb.append(System.currentTimeMillis());
@@ -82,7 +82,7 @@ public class EventLog {
 			}
 			sb.append(SEPARATOR);
 
-			if (type != Type.MONITOR) {
+			if (type != LogType.MONITOR) {
 				Log.d(TAG, sb.toString());
 			}
 

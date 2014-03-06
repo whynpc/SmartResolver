@@ -22,7 +22,7 @@ import org.xbill.DNS.Resolver;
 import org.xbill.DNS.SimpleResolver;
 import org.xbill.DNS.TSIG;
 
-import edu.ucla.cs.wing.smartresolver.EventLog.Type;
+import edu.ucla.cs.wing.smartresolver.EventLog.LogType;
 import edu.ucla.cs.wing.smartresolver.R.string;
 import android.app.TaskStackBuilder;
 import android.content.Context;
@@ -33,8 +33,7 @@ public class DnsResolver {
 
 	public static final int TIMEOUT = 500;
 	public static final int BUF_SIZE = 1024;
-	public static final String CMD_LAUNCH_PROXY = "su -c ./data/local/dnsproxy";
-	public static final String CMD_STOP_PROXY = "su -c killall dnsproxy";
+	
 
 	private DatagramSocket internalSocket;
 
@@ -103,7 +102,7 @@ public class DnsResolver {
 			internalSocket = new DatagramSocket(port);
 			internalSocket.setSoTimeout(TIMEOUT);
 		} catch (SocketException e) {
-			EventLog.write(Type.ERROR, "Fail to open internal socket");
+			EventLog.write(LogType.ERROR, "Fail to open internal socket");
 		}
 
 		// refresh thread pool to handle queries
@@ -126,7 +125,7 @@ public class DnsResolver {
 			resolver = new ExtendedResolver(servers);
 		} catch (UnknownHostException e) {
 			resolver = null;
-			EventLog.write(Type.ERROR, "Failt to init resovler");
+			EventLog.write(LogType.ERROR, "Failt to init resovler");
 		}
 	}
 
@@ -142,7 +141,7 @@ public class DnsResolver {
 
 	private void handleResolveReq(DatagramPacket pkt) {
 		try {
-			EventLog.write(Type.DEBUG, "Incoming query from proxy at port = "
+			EventLog.write(LogType.DEBUG, "Incoming query from proxy at port = "
 					+ pkt.getPort());
 
 			byte[] data = Arrays.copyOf(pkt.getData(), pkt.getLength());
@@ -150,19 +149,19 @@ public class DnsResolver {
 			DnsQueryTask queryTask = new DnsQueryTask(msg, pkt.getPort(), this);
 
 			if (getCurrentDnsCache().resolveQueryTask(queryTask)) {
-				EventLog.write(Type.DEBUG, "Query handled by cache: "
+				EventLog.write(LogType.DEBUG, "Query handled by cache: "
 						+ queryTask.getQuestion());
 			} else {
 				synchronized (pendingQueries) {
 					if (pendingQueries.containsKey(queryTask.getQuestion())) {
-						EventLog.write(Type.DEBUG,
+						EventLog.write(LogType.DEBUG,
 								"Query duplicate to pending queries: "
 										+ queryTask.getQuestion());
 						DnsQueryTask existingTask = pendingQueries
 								.get(queryTask.getQuestion());
 						existingTask.addObserver(queryTask);
 					} else {
-						EventLog.write(Type.DEBUG, "Query to server: "
+						EventLog.write(LogType.DEBUG, "Query to server: "
 								+ queryTask.getQuestion());
 						pendingQueries.put(queryTask.getQuestion(), queryTask);
 						executor.execute(queryTask);
@@ -180,11 +179,7 @@ public class DnsResolver {
 
 			running = true;
 
-			try {
-				Runtime.getRuntime().exec(CMD_LAUNCH_PROXY);
-			} catch (IOException e2) {
-				EventLog.write(Type.ERROR, "Fail to launch proxy");
-			}
+			DnsProxy.launchDnsProxy();
 
 			new Thread() {
 				@Override
@@ -197,7 +192,7 @@ public class DnsResolver {
 							handleResolveReq(pkt);
 						} catch (SocketTimeoutException e1) {
 						} catch (IOException e) {
-							EventLog.write(Type.ERROR,
+							EventLog.write(LogType.ERROR,
 									"IO error when recving pkt from proxy");
 						}
 					}
@@ -210,7 +205,7 @@ public class DnsResolver {
 				String cmd = "su -c setprop net.dns1 127.0.0.1";
 				Runtime.getRuntime().exec(cmd);
 			} catch (IOException e) {
-				EventLog.write(Type.ERROR, "Fail to change dns server setting");
+				EventLog.write(LogType.ERROR, "Fail to change dns server setting");
 			}
 		}
 	}
@@ -218,11 +213,11 @@ public class DnsResolver {
 	public boolean reply(DatagramPacket pkt) {
 		if (internalSocket != null) {
 			try {
-				EventLog.write(Type.DEBUG,
+				EventLog.write(LogType.DEBUG,
 						"Reply to proxy at port = " + pkt.getPort());
 				internalSocket.send(pkt);
 			} catch (IOException e) {
-				EventLog.write(Type.ERROR, "IOException when replying to proxy");
+				EventLog.write(LogType.ERROR, "IOException when replying to proxy");
 				return false;
 			}
 		}
@@ -241,11 +236,8 @@ public class DnsResolver {
 		EventLog.close();
 
 		running = false;
-		try {
-			Runtime.getRuntime().exec(CMD_STOP_PROXY);
-		} catch (IOException e1) {
-			EventLog.write(Type.ERROR, "Fail to stop proxy");
-		}
+		
+		DnsProxy.stopDnsProxy();
 
 		// restore DNS server
 		// TODO: add wifi support
@@ -254,7 +246,7 @@ public class DnsResolver {
 		try {
 			Runtime.getRuntime().exec(cmd);
 		} catch (IOException e) {
-			EventLog.write(Type.ERROR, "Fail to restore dns server setting");
+			EventLog.write(LogType.ERROR, "Fail to restore dns server setting");
 		}
 	}
 

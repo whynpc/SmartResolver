@@ -11,7 +11,7 @@ import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
 import org.xbill.DNS.TextParseException;
 
-import edu.ucla.cs.wing.smartresolver.EventLog.Type;
+import edu.ucla.cs.wing.smartresolver.EventLog.LogType;
 import android.database.Observable;
 import android.os.Message;
 import android.preference.PreferenceActivity.Header;
@@ -46,7 +46,7 @@ public class DnsQueryTask extends java.util.Observable implements Observer, Runn
 		this.msg = msg;
 		question = msg.getQuestion().getName().toString();
 		
-		EventLog.write(Type.DEBUG, "DnsQueryTask: " + question);
+		EventLog.write(LogType.DEBUG, "DnsQueryTask: " + question);
 	}
 	
 	private void replyToProxy(Record[] records) {
