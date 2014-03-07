@@ -44,7 +44,7 @@ public class DnsProxy {
 			// Attempt to write a file to a root-only
 			DataOutputStream os = new DataOutputStream(p.getOutputStream());
 			os.writeBytes("cp " + outf.getAbsolutePath() + " /data/local\n");
-			os.writeBytes("chmod 777 /data/local/ipspoof\n");
+			os.writeBytes("chmod 777 /data/local/dnsproxy\n");
 
 			// Close the terminal
 			os.writeBytes("exit\n");
@@ -59,22 +59,47 @@ public class DnsProxy {
 
 		}
 	}
-	
+
 	public static void launchDnsProxy() {
 		try {
 			Runtime.getRuntime().exec(CMD_LAUNCH_PROXY);
 		} catch (IOException e2) {
 			EventLog.write(LogType.ERROR, "Fail to launch proxy");
-		}		
+		}
+
+	}
+
+	public static void changeDnsServerSetting() {
+		// change DNS server
+		try {
+			// only change primary server; keep secondary server as backup
+			String cmd = "su -c setprop net.dns1 127.0.0.1";
+			Runtime.getRuntime().exec(cmd);
+		} catch (IOException e) {
+			EventLog.write(LogType.ERROR, "Fail to change dns server setting");
+		}
 	}
 	
+	public static void restoreDnsServerSetting() {
+		String cmd = "su -c setprop net.dns1 "
+				+ (MobileInfo.getInstance().isConnectingWifi() ? MobileInfo
+						.getInstance().getWifiDnsServer(1) : MobileInfo
+						.getInstance().getCellularDnsServer(1));
+		try {
+			Runtime.getRuntime().exec(cmd);
+		} catch (IOException e) {
+			EventLog.write(LogType.ERROR, "Fail to restore dns server setting");
+		}		
+	}
+
 	public static void stopDnsProxy() {
 		try {
+
 			Runtime.getRuntime().exec(CMD_STOP_PROXY);
 		} catch (IOException e1) {
 			EventLog.write(LogType.ERROR, "Fail to stop proxy");
 		}
-		
+
 	}
 
 }

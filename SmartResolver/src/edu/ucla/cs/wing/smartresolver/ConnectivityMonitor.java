@@ -19,11 +19,10 @@ public class ConnectivityMonitor extends BroadcastReceiver {
 		
 		for (String key : bundle.keySet()) {
 			//EventLog.write(LogType.DEBUG, key + ": " + bundle.get(key).toString());
-			
-			MobileInfo mobileInfo = MobileInfo.getInstance();
-			if (mobileInfo != null) {
-				
-			}
+		}
+		DnsResolver resolver =  BackgroundService.getResolver();
+		if (resolver != null) {
+			resolver.onNetworkChange();
 		}
 	}
 

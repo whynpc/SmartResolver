@@ -6,21 +6,18 @@ import org.xbill.DNS.Record;
 import org.xbill.DNS.Resolver;
 
 public class DnsCache {
-	
-	public static class DnsRecord {		
-	}
-	
+		
 	private DnsResolver resolver;
 	
 	private ContentServerPerfDb perfDb;
 	
-	private String networkId;	
-	
-	private HashMap<String, DnsRecord> cache;
+	private String networkId;
 	
 	public DnsCache(DnsResolver resolver) {
 		this.resolver = resolver;
-		cache = new HashMap<String, DnsCache.DnsRecord>();			
+		
+		
+					
 	}	
 	
 	public String getNetworkId() {
@@ -44,9 +41,7 @@ public class DnsCache {
 	}
 	
 	public boolean hasAnswer(String question) {
-		if (cache.containsKey(question)) {
-			return true;
-		}
+		
 		return false;
 	}
 	

@@ -177,6 +177,16 @@ public class MobileInfo {
 	public String getGeoLong() {
 		return geoLong;
 	}
+	
+	public boolean isConnectingWifi() {
+		NetworkInfo cInfo = connectivityManager.getActiveNetworkInfo();
+		if (cInfo == null || !cInfo.isConnectedOrConnecting()) {
+			return false;
+		} else if (cInfo.getType() == ConnectivityManager.TYPE_WIFI) {
+			return true;
+		}
+		return false;
+	}
 
 	/* Retrieve the networks technologies, GSM or CDMA */
 	public String getNetworkTech() {
@@ -216,6 +226,22 @@ public class MobileInfo {
 		}
 		return server;
 	}
+	
+	public String getWifiDnsServer(int num) {
+		String server = null;
+		try {
+			Process process = Runtime.getRuntime()
+					.exec("dhcp.wlan0.dns" + num);
+			BufferedReader in = new BufferedReader(new InputStreamReader(
+					process.getInputStream()));
+			server = in.readLine();
+			in.close();
+		} catch (IOException e) {
+		}
+		return server;
+	}
+	
+	 
 
 	/* Retrieve the network type, GPRS, UMTS, LTE, HSPA */
 	public String getNetworkTypeStr() {

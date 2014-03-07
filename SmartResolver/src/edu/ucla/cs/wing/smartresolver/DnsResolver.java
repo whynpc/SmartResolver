@@ -37,7 +37,8 @@ public class DnsResolver {
 
 	private DatagramSocket internalSocket;
 
-	private Resolver resolver;
+	private ExtendedResolver stubResovler;
+	private String[] currentServers;
 
 	private boolean running;
 	private boolean disableLegacyCache;
@@ -116,17 +117,28 @@ public class DnsResolver {
 				TimeUnit.SECONDS, pendingQueryTasks);
 
 		// TODO: refresh DNS server
+		refreshStubResolver();
+	}
+	
+	private void refreshStubResolver() {		
 		String[] servers = new String[2];
 		for (int i = 0; i < 2; i++) {
-			// TODO: add support to wifi dns servers
-			servers[i] = MobileInfo.getInstance().getCellularDnsServer(i + 1);
+			servers[i] = MobileInfo.getInstance().isConnectingWifi() ? 
+					MobileInfo.getInstance().getWifiDnsServer(i + 1) : 
+						MobileInfo.getInstance().getCellularDnsServer(i + 1);			
 		}
+		// check whether servers are the same
+		if (currentServers != null && servers[0].equals(currentServers[0]) &&
+				servers[1].equals(currentServers[1])) {
+			return;
+		}
+		
 		try {
-			resolver = new ExtendedResolver(servers);
+			stubResovler = new ExtendedResolver(servers);
 		} catch (UnknownHostException e) {
-			resolver = null;
+			stubResovler = null;
 			EventLog.write(LogType.ERROR, "Failt to init resovler");
-		}
+		}		
 	}
 
 	public DnsCache getCurrentDnsCache() {
@@ -137,6 +149,8 @@ public class DnsResolver {
 		if (internalSocket != null) {
 			internalSocket.close();
 		}
+		DnsProxy.restoreDnsServerSetting();
+		DnsProxy.stopDnsProxy();
 	}
 
 	private void handleResolveReq(DatagramPacket pkt) {
@@ -180,6 +194,7 @@ public class DnsResolver {
 			running = true;
 
 			DnsProxy.launchDnsProxy();
+			DnsProxy.changeDnsServerSetting();
 
 			new Thread() {
 				@Override
@@ -199,14 +214,7 @@ public class DnsResolver {
 				}
 			}.start();
 
-			// change DNS server
-			try {
-				// only change primary server; keep secondary server as backup
-				String cmd = "su -c setprop net.dns1 127.0.0.1";
-				Runtime.getRuntime().exec(cmd);
-			} catch (IOException e) {
-				EventLog.write(LogType.ERROR, "Fail to change dns server setting");
-			}
+			
 		}
 	}
 
@@ -225,7 +233,7 @@ public class DnsResolver {
 	}
 
 	public Resolver getResolver() {
-		return resolver;
+		return stubResovler;
 	}
 
 	public boolean isDisableLegacyCache() {
@@ -237,17 +245,8 @@ public class DnsResolver {
 
 		running = false;
 		
-		DnsProxy.stopDnsProxy();
-
-		// restore DNS server
-		// TODO: add wifi support
-		String cmd = "su -c setprop net.dns1 "
-				+ MobileInfo.getInstance().getCellularDnsServer(1);
-		try {
-			Runtime.getRuntime().exec(cmd);
-		} catch (IOException e) {
-			EventLog.write(LogType.ERROR, "Fail to restore dns server setting");
-		}
+		DnsProxy.restoreDnsServerSetting();
+		DnsProxy.stopDnsProxy();		
 	}
 
 	public class QueryExecutor extends ThreadPoolExecutor {
@@ -269,6 +268,11 @@ public class DnsResolver {
 				}
 			}
 		}
+	}
+	
+	public void onNetworkChange() {
+		DnsProxy.changeDnsServerSetting();
+		
 	}
 
 }
