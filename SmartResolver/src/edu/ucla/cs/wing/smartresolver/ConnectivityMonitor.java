@@ -22,6 +22,8 @@ public class ConnectivityMonitor extends BroadcastReceiver {
 		}
 		DnsResolver resolver =  BackgroundService.getResolver();
 		if (resolver != null) {
+			EventLog.write(LogType.DEBUG, "On network change");
+			
 			resolver.onNetworkChange();
 		}
 	}

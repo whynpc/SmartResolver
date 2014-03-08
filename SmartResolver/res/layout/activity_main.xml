@@ -17,11 +17,55 @@
         android:layout_marginTop="23dp"
         android:orientation="vertical" >
 
-        <ToggleButton
-            android:id="@+id/toggleButtonResolver"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" >
+
+            <Button
+                android:id="@+id/button4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="onClickStart"
+                android:text="Start" />
+
+            <Button
+                android:id="@+id/button5"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="onClickStop"
+                android:text="Stop" />
+
+            <Button
+                android:id="@+id/button3"
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="onClickClearCache"
+                android:text="Clear Cache" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="260dp"
             android:layout_height="wrap_content"
-            android:text="ToggleButton" />
+            android:layout_weight="1" >
+
+            <Button
+                android:id="@+id/button1"
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="onClickStartLog"
+                android:text="Start Log" />
+
+            <Button
+                android:id="@+id/button2"
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="onClickStartLog"
+                android:text="Stop Log" />
+        </LinearLayout>
 
         <Button
             android:id="@+id/buttonDebug"
@@ -29,7 +73,6 @@
             android:layout_height="wrap_content"
             android:onClick="onClickDebug"
             android:text="Debug" />
-
     </LinearLayout>
 
 </RelativeLayout>

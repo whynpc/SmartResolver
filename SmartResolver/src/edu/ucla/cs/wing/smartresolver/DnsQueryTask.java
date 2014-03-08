@@ -3,6 +3,7 @@ package edu.ucla.cs.wing.smartresolver;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.util.Arrays;
 import java.util.Observer;
 
 import org.xbill.DNS.Flags;
@@ -21,20 +22,22 @@ public class DnsQueryTask extends java.util.Observable implements Observer, Runn
 	private long createTime;
 	
 	private org.xbill.DNS.Message msg;	
-	private String question;
+	private String name;
+	private Record question;
 	
 	private DnsResolver resolver;
+	
 	
 	private int incomingPort;
 	
 	private boolean replied = false;
 	
-	public String getQuestion() {
-		return question;
+	public String getName() {
+		return name;
 	}
 
 	public void setQuestion(String question) {
-		this.question = question;
+		this.name = question;
 	}	
 	
 	public DnsQueryTask(org.xbill.DNS.Message msg, int port, DnsResolver resolver) {
@@ -44,63 +47,45 @@ public class DnsQueryTask extends java.util.Observable implements Observer, Runn
 		this.resolver = resolver;		
 		incomingPort = port;
 		this.msg = msg;
-		question = msg.getQuestion().getName().toString();
+		this.question = msg.getQuestion();
+	
+		name = msg.getQuestion().getName().toString();
 		
-		EventLog.write(LogType.DEBUG, "DnsQueryTask: " + question);
+		EventLog.write(LogType.DEBUG, "DnsQueryTask: " + name);
 	}
 	
 	private void replyToProxy(Record[] records) {
-		try {
-			org.xbill.DNS.Message response = new org.xbill.DNS.Message(msg.toWire());
-			org.xbill.DNS.Header header = response.getHeader();
-			header.setFlag(Flags.QR);
-			header.setFlag(Flags.RA);
-			header.setFlag(Flags.RD);
-			response.setHeader(header);
-			
-			for (Record record : records) {
-				if (resolver.isDisableLegacyCache()) {
-					// TODO: set TTL of record to 0
-				}				
-				response.addRecord(record, Section.ANSWER);				
-			}
-			
-			byte[] data = response.toWire();
-			DatagramPacket pkt = new DatagramPacket(data, data.length);
-			pkt.setAddress(InetAddress.getLocalHost());
-			pkt.setPort(incomingPort);
-			if (resolver.reply(pkt)) {
-				replied = true;
-			}			
-		} catch (IOException e) {
-		}
-	}
-
-	// TODO: try answer with cache
-	public void answerWithCache() {
-		handleError();
+		if (resolver != null && records != null) {
+			resolver.reply(msg, Arrays.asList(records), incomingPort);
+		}				
 	}
 
 	// receive the response for another pending query for the same name
 	@Override
 	public void update(java.util.Observable observable, Object data) {
 		Record[] records = (Record[]) data;
-		replyToProxy(records);
-		handleError();
+		replyToProxy(records);		
 	}	
 	
 	// send query to resolve
 	private void sendQuery() {
 		try {
-			Lookup lookup = new Lookup(question);
-			lookup.setResolver(resolver.getResolver());			
-			Record[] records = lookup.run();			
-			replyToProxy(records);
-			setChanged();
-			notifyObservers(records);			
-		} catch (TextParseException e) {		
-		}
-		handleError();
+			Lookup lookup = new Lookup(question.getName(), question.getType());
+			lookup.setResolver(resolver.getResolver());
+			
+			Record[] records = lookup.run();
+			if (records != null) {
+				replyToProxy(records);
+				
+				for (Record record : records) {
+					resolver.getCurrentDnsCache().addRecord(name, record);
+				}
+				setChanged();
+				notifyObservers(records);
+			}						
+		} catch (Exception e) {
+			EventLog.write(LogType.ERROR, "Error in lookup: " + e.toString());
+		}		
 	}
 
 	@Override

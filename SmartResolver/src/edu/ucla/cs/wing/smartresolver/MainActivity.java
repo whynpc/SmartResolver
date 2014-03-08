@@ -1,6 +1,8 @@
 package edu.ucla.cs.wing.smartresolver;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import android.os.Bundle;
 import android.print.PrintAttributes.Resolution;
@@ -15,7 +17,7 @@ import android.widget.ToggleButton;
 
 public class MainActivity extends Activity {
 	
-	private ToggleButton toggleButtonResolver;
+	
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -23,18 +25,7 @@ public class MainActivity extends Activity {
 		setContentView(R.layout.activity_main);
 		
 		
-		toggleButtonResolver = (ToggleButton) findViewById(R.id.toggleButtonResolver);
-		toggleButtonResolver.setOnCheckedChangeListener(new OnCheckedChangeListener() {
-			
-			@Override
-			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-				if (isChecked) {
-					BackgroundService.getResolver().start();					
-				} else {
-					BackgroundService.getResolver().stop();					
-				}
-			}
-		});
+		
 		
 		
 		Intent intent = new Intent(this, BackgroundService.class);
@@ -49,15 +40,41 @@ public class MainActivity extends Activity {
 	}
 	
 	public void onClickDebug(View view) {
-		try {
-			Runtime.getRuntime().exec("ping -c 3 short.dnstest.whynpc.info");
-		} catch (IOException e) {
-
-		}
+		new Thread() {
+			@Override
+			public void run() {
+				try {
+					InetAddress.getAllByName("short.dnstest.whynpc.info");
+				} catch (UnknownHostException e) {				
+					e.printStackTrace();
+				}
+			}
+		}.start();
 	}
 	
 	private void sendMsgToService() {
 		
+	}
+	
+	public void onClickClearCache(View view) {
+		BackgroundService.getResolver().clearCache();
+	}
+	
+	public void onClickStartLog(View view) {
+		String[] parameters = {String.valueOf(System.currentTimeMillis())};		
+		EventLog.newLogFile(EventLog.genLogFileName(parameters));		
+	}
+	
+	public void onClickStopLog(View view) {
+		EventLog.close();
+	}
+	
+	public void onClickStart(View view) {
+		BackgroundService.getResolver().start();
+	}
+	
+	public void onClickStop(View view) {
+		BackgroundService.getResolver().stop();
 	}
 	
 	@Override

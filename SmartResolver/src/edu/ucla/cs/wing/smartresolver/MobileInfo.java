@@ -231,7 +231,7 @@ public class MobileInfo {
 		String server = null;
 		try {
 			Process process = Runtime.getRuntime()
-					.exec("dhcp.wlan0.dns" + num);
+					.exec("getprop dhcp.wlan0.dns" + num);
 			BufferedReader in = new BufferedReader(new InputStreamReader(
 					process.getInputStream()));
 			server = in.readLine();

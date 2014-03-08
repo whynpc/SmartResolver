@@ -59,14 +59,19 @@ public class DnsProxy {
 
 		}
 	}
+	
+	public static boolean isDnsProxyRunning() {
+		return false;
+	}
 
 	public static void launchDnsProxy() {
 		try {
-			Runtime.getRuntime().exec(CMD_LAUNCH_PROXY);
+			if (!isDnsProxyRunning()) {
+				Runtime.getRuntime().exec(CMD_LAUNCH_PROXY);				
+			}
 		} catch (IOException e2) {
 			EventLog.write(LogType.ERROR, "Fail to launch proxy");
 		}
-
 	}
 
 	public static void changeDnsServerSetting() {

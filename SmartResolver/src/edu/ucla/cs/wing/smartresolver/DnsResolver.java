@@ -7,9 +7,13 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
@@ -18,7 +22,10 @@ import java.util.concurrent.TimeUnit;
 
 import org.xbill.DNS.Cache;
 import org.xbill.DNS.ExtendedResolver;
+import org.xbill.DNS.Flags;
+import org.xbill.DNS.Record;
 import org.xbill.DNS.Resolver;
+import org.xbill.DNS.Section;
 import org.xbill.DNS.SimpleResolver;
 import org.xbill.DNS.TSIG;
 
@@ -31,9 +38,8 @@ import android.os.Message;
 
 public class DnsResolver {
 
-	public static final int TIMEOUT = 500;
+	public static final int TIMEOUT = 5000;
 	public static final int BUF_SIZE = 1024;
-	
 
 	private DatagramSocket internalSocket;
 
@@ -55,6 +61,8 @@ public class DnsResolver {
 	private QueryExecutor executor;
 	private BlockingQueue<Runnable> pendingQueryTasks;
 	private HashMap<String, DnsQueryTask> pendingQueries;
+	
+	private Timer timer;
 
 	public DnsResolver(Context context, SharedPreferences prefs) {
 		this.context = context;
@@ -65,6 +73,7 @@ public class DnsResolver {
 		pendingQueries = new HashMap<String, DnsQueryTask>();
 		defaultCache = createCache(null, contentServerPerfDb);
 		currentCache = defaultCache;
+		timer = new Timer();
 	}
 
 	public void init() {
@@ -83,7 +92,7 @@ public class DnsResolver {
 	}
 
 	private DnsCache createDnsCache(String network) {
-		// DnsCache dnsCache = new DnsCache(this, serverPerfDb)
+		DnsCache dnsCache = new DnsCache(this);
 		return null;
 	}
 
@@ -119,26 +128,34 @@ public class DnsResolver {
 		// TODO: refresh DNS server
 		refreshStubResolver();
 	}
-	
-	private void refreshStubResolver() {		
+
+	private void refreshStubResolver() {
 		String[] servers = new String[2];
 		for (int i = 0; i < 2; i++) {
-			servers[i] = MobileInfo.getInstance().isConnectingWifi() ? 
-					MobileInfo.getInstance().getWifiDnsServer(i + 1) : 
-						MobileInfo.getInstance().getCellularDnsServer(i + 1);			
+			servers[i] = MobileInfo.getInstance().isConnectingWifi() ? MobileInfo
+					.getInstance().getWifiDnsServer(i + 1) : MobileInfo
+					.getInstance().getCellularDnsServer(i + 1);
+			EventLog.write(LogType.DEBUG, servers[i]);
+
 		}
-		// check whether servers are the same
-		if (currentServers != null && servers[0].equals(currentServers[0]) &&
-				servers[1].equals(currentServers[1])) {
+		// check whether server[0] available
+		if (servers[0] == null) {
 			return;
 		}
-		
+		// check whether servers are the same
+		if (currentServers != null && servers[0].equals(currentServers[0])
+				&& servers[1].equals(currentServers[1])) {
+			return;
+		}
+		EventLog.write(LogType.DEBUG, "Reset resolver to: " + servers[0] + ";"
+				+ servers[1]);
+
 		try {
 			stubResovler = new ExtendedResolver(servers);
 		} catch (UnknownHostException e) {
 			stubResovler = null;
 			EventLog.write(LogType.ERROR, "Failt to init resovler");
-		}		
+		}
 	}
 
 	public DnsCache getCurrentDnsCache() {
@@ -155,29 +172,34 @@ public class DnsResolver {
 
 	private void handleResolveReq(DatagramPacket pkt) {
 		try {
-			EventLog.write(LogType.DEBUG, "Incoming query from proxy at port = "
-					+ pkt.getPort());
+			EventLog.write(LogType.DEBUG,
+					"Incoming query from proxy at port = " + pkt.getPort());
 
 			byte[] data = Arrays.copyOf(pkt.getData(), pkt.getLength());
 			org.xbill.DNS.Message msg = new org.xbill.DNS.Message(data);
 			DnsQueryTask queryTask = new DnsQueryTask(msg, pkt.getPort(), this);
 
-			if (getCurrentDnsCache().resolveQueryTask(queryTask)) {
+			List<Record> records = new ArrayList<Record>();
+			if (getCurrentDnsCache()
+					.hasAnswer(queryTask.getName(), records)) {
 				EventLog.write(LogType.DEBUG, "Query handled by cache: "
-						+ queryTask.getQuestion());
+						+ queryTask.getName());
+				reply(msg, records, pkt.getPort());
 			} else {
 				synchronized (pendingQueries) {
-					if (pendingQueries.containsKey(queryTask.getQuestion())) {
+					// if (pendingQueries.containsKey(queryTask.getQuestion()))
+					// {
+					if (false) {
 						EventLog.write(LogType.DEBUG,
 								"Query duplicate to pending queries: "
-										+ queryTask.getQuestion());
+										+ queryTask.getName());
 						DnsQueryTask existingTask = pendingQueries
-								.get(queryTask.getQuestion());
+								.get(queryTask.getName());
 						existingTask.addObserver(queryTask);
 					} else {
 						EventLog.write(LogType.DEBUG, "Query to server: "
-								+ queryTask.getQuestion());
-						pendingQueries.put(queryTask.getQuestion(), queryTask);
+								+ queryTask.getName());
+						pendingQueries.put(queryTask.getName(), queryTask);
 						executor.execute(queryTask);
 					}
 				}
@@ -188,9 +210,6 @@ public class DnsResolver {
 
 	public void start() {
 		if (!running) { // avoid duplicate start
-			EventLog.newLogFile(EventLog.genLogFileName(new String[] { String
-					.valueOf(System.currentTimeMillis()) }));
-
 			running = true;
 
 			DnsProxy.launchDnsProxy();
@@ -214,7 +233,44 @@ public class DnsResolver {
 				}
 			}.start();
 
-			
+		}
+	}
+
+	public boolean reply(org.xbill.DNS.Message request, List<Record> answers,
+			int incomingPort) {
+
+		org.xbill.DNS.Message response = null;
+		try {
+			response = new org.xbill.DNS.Message(request.toWire());
+		} catch (IOException e1) {
+			return false;
+		}
+		org.xbill.DNS.Header header = response.getHeader();
+		header.setFlag(Flags.QR);
+		header.setFlag(Flags.RA);
+		header.setFlag(Flags.RD);
+		response.setHeader(header);
+
+		if (answers != null) {
+			for (Record record : answers) {
+				if (isDisableLegacyCache()) {
+					// TODO: set TTL of record to 0
+				}
+				response.addRecord(record, Section.ANSWER);
+			}
+
+			byte[] data = response.toWire();
+			DatagramPacket pkt = new DatagramPacket(data, data.length);
+			try {
+				pkt.setAddress(InetAddress.getLocalHost());
+			} catch (UnknownHostException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			pkt.setPort(incomingPort);
+			return reply(pkt);
+		} else {
+			return false;
 		}
 	}
 
@@ -225,7 +281,8 @@ public class DnsResolver {
 						"Reply to proxy at port = " + pkt.getPort());
 				internalSocket.send(pkt);
 			} catch (IOException e) {
-				EventLog.write(LogType.ERROR, "IOException when replying to proxy");
+				EventLog.write(LogType.ERROR,
+						"IOException when replying to proxy");
 				return false;
 			}
 		}
@@ -241,12 +298,10 @@ public class DnsResolver {
 	}
 
 	public void stop() {
-		EventLog.close();
-
 		running = false;
-		
+
 		DnsProxy.restoreDnsServerSetting();
-		DnsProxy.stopDnsProxy();		
+		DnsProxy.stopDnsProxy();
 	}
 
 	public class QueryExecutor extends ThreadPoolExecutor {
@@ -262,17 +317,34 @@ public class DnsResolver {
 			DnsQueryTask task = (DnsQueryTask) r;
 			synchronized (pendingQueries) {
 				// XXX: whether also do pendingQueries.remove() with Observer?
-				if (pendingQueries.containsKey(task.getQuestion())
-						&& pendingQueries.get(task.getQuestion()).equals(task)) {
-					pendingQueries.remove(task.getQuestion());
+				if (pendingQueries.containsKey(task.getName())
+						&& pendingQueries.get(task.getName()).equals(task)) {
+					pendingQueries.remove(task.getName());
 				}
 			}
 		}
 	}
-	
+
+	public void clearCache() {
+		getCurrentDnsCache().clear();
+		try {
+			Runtime.getRuntime().exec("su -c nds resolver flushdefaultif");
+		} catch (IOException e) {
+
+		}
+	}
+
 	public void onNetworkChange() {
-		DnsProxy.changeDnsServerSetting();
-		
+		if (running) {
+			timer.schedule(new TimerTask() {				
+				@Override
+				public void run() {
+					DnsProxy.changeDnsServerSetting();
+					refreshStubResolver();
+				}
+			}, 1000);
+			
+		}
 	}
 
 }

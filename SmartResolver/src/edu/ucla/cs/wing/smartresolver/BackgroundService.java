@@ -1,5 +1,7 @@
 package edu.ucla.cs.wing.smartresolver;
 
+import java.util.Timer;
+
 import org.xbill.DNS.Resolver;
 
 import android.app.Service;
@@ -15,8 +17,11 @@ public class BackgroundService extends Service {
 	private SharedPreferences prefs;
 	private MobileInfo mobileInfo;
 	
+	private Timer timer;
+	
 	public static DnsResolver getResolver() {
-		return _resolver;
+		return _resolver;	
+		
 	}
 	
 	@Override
@@ -31,6 +36,8 @@ public class BackgroundService extends Service {
 		_resolver.init();
 		
 		DnsProxy.deployDnsProxy(this);
+		
+		timer = new Timer();
 	}
 
 	@Override
